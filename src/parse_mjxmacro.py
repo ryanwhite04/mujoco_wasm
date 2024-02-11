@@ -52,16 +52,20 @@ def parse_int_line(line:str, header_lines:list[str], mj_definitions:list[str], e
 
     typescript_definitions.append('  '+name.ljust(22)+': '+('number').rjust(12)+';')
 
+import os
+include_dir = os.path.join("..", "mujoco", "include", "mujoco")
+mjmodel_path = os.path.join(include_dir, "mjmodel.h")
+mjdata_path = os.path.join(include_dir, "mjdata.h")
+mjxmacro_path = os.path.join(include_dir, "mjxmacro.h")
 
-with open("include/mujoco/mjmodel.h") as f:
+with open(mjmodel_path) as f:
     model_lines = f.readlines()
 
-with open("include/mujoco/mjdata.h") as f:
+with open(mjdata_path) as f:
     data_lines = f.readlines()
 
-
 # Parse mjx Macro to get the emscripten bindings and typescript definitions
-with open("include/mujoco/mjxmacro.h") as f:
+with open(mjxmacro_path) as f:
     lines = f.readlines()
 
     for line in lines:
@@ -93,8 +97,14 @@ with open("include/mujoco/mjxmacro.h") as f:
         if "#define MJDATA_POINTERS" in line:
             parse_mode = ("pointers", "data")
 
-import functions
-from ast_nodes import ValueType
+import sys
+
+# Ensure the parent directory of `mujoco` is in the Python search path
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+from mujoco.introspect import functions
+
 for function in functions.FUNCTIONS:
     #print("Function:", function)
     param_types = [param.decltype for param in functions.FUNCTIONS[function].parameters]
@@ -173,7 +183,7 @@ for line in model_lines:
         auto_gen_lines["enums_typescript"].append("export enum "+cur_enum_name +" {")
 
 # Insert our auto-generated bindings into our template files
-with open("src/main.template.cc") as f:
+with open("main.template.cc") as f:
     content = f.read()
     content = content.replace("// MJMODEL_DEFINITIONS", "// MJMODEL_DEFINITIONS\n"+"\n".join(auto_gen_lines["model_definitions"]))
     content = content.replace("// MJMODEL_BINDINGS"   , "// MJMODEL_BINDINGS\n"   +"\n".join(auto_gen_lines["model_bindings"]))
@@ -183,13 +193,19 @@ with open("src/main.template.cc") as f:
 
     content = content.replace("// MODEL_ENUMS", "// MODEL_ENUMS\n"+"\n".join(auto_gen_lines["model_enums"]))
 
-    with open("src/main.genned.cc", mode="w") as f:
+    import sys
+
+    # Assuming the output path is passed as the first argument
+    output_path = sys.argv[1]  # The full path where main.genned.cc should be written
+
+    # Use output_path when opening the file for writing
+    with open(output_path, mode="w") as f:
         f.write(content)
 
-with open("src/mujoco_wasm.template.d.ts") as f:
+with open("mujoco_wasm.template.d.ts") as f:
     content = f.read()
     content = content.replace("// MODEL_INTERFACE", "// MODEL_INTERFACE\n"+"\n".join(auto_gen_lines["model_typescript"]))
     content = content.replace("// DATA_INTERFACE" , "// DATA_INTERFACE\n" +"\n".join(auto_gen_lines[ "data_typescript"]))
     content = content.replace("// ENUMS" , "// ENUMS\n" +"\n".join(auto_gen_lines[ "enums_typescript"]))
-    with open("dist/mujoco_wasm.d.ts", mode="w") as f:
+    with open("../dist/mujoco_wasm.d.ts", mode="w") as f:
         f.write(content)

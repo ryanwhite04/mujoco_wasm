@@ -1,7 +1,23 @@
 cmake_minimum_required(VERSION 3.2)
 project(mujoco_wasm)
 
-set(SOURCE_FILES main.genned.cc)
+# Find the Python3 interpreter
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+# Add a custom command to generate main.genned.cc
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/main.genned.cc  # Use binary dir for output
+  COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/parse_mjxmacro.py ${CMAKE_CURRENT_BINARY_DIR}/main.genned.cc
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}  # Set the working directory to where the script is
+  DEPENDS 
+    ${CMAKE_CURRENT_SOURCE_DIR}/main.template.cc 
+    ${CMAKE_CURRENT_SOURCE_DIR}/../mujoco/introspect/functions.py 
+    ${CMAKE_CURRENT_SOURCE_DIR}/../mujoco/introspect/ast_nodes.py
+  COMMENT "Generating main.genned.cc from main.template.cc"
+)
+
+# Specify the source file for the executable
+set(SOURCE_FILES ${CMAKE_CURRENT_BINARY_DIR}/main.genned.cc)  # Use the generated source
 add_compile_options(-pthread)
 set(EMCC_LINKER_FLAGS "-s ASSERTIONS=1 --bind -s ALLOW_MEMORY_GROWTH=1 -s EXPORT_ES6=1 -s MODULARIZE=1 -s FORCE_FILESYSTEM=1 -s EXPORTED_RUNTIME_METHODS=['FS','MEMFS'] -s EXPORT_NAME=load_mujoco -s EXCEPTION_CATCHING_ALLOWED=['load_from_xml']")
 set(CMAKE_REQUIRED_FLAGS "${EMCC_LINKER_FLAGS}")
