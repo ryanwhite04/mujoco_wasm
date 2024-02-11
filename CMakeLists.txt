@@ -16,5 +16,10 @@ set(MUJOCO_INSTALL_LIB_DIR ${CMAKE_BINARY_DIR}/lib)
 include_directories(${MUJOCO_INSTALL_INCLUDE_DIR})
 link_directories(${MUJOCO_INSTALL_LIB_DIR})
 
-add_subdirectory(lib)
+set(MUJOCO_BUILD_EXAMPLES OFF CACHE BOOL "Build samples for MuJoCo" FORCE)
+set(MUJOCO_BUILD_SIMULATE OFF CACHE BOOL "Build simulate library for MuJoCo" FORCE)
+set(MUJOCO_BUILD_TESTS OFF CACHE BOOL "Build tests for MuJoCo" FORCE)
+set(MUJOCO_TEST_PYTHON_UTIL OFF CACHE BOOL "Build and test utility libraries for Python bindings" FORCE)
+
+add_subdirectory(mujoco)
 add_subdirectory(src)
