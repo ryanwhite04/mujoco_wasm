@@ -306,6 +306,8 @@ export enum mjtDisableBit {
     mjDSBL_SENSOR            ,
     /** mid-phase collision filtering            */
     mjDSBL_MIDPHASE          ,
+    /** implicit integration of joint damping in Euler integrator */
+    mjDSBL_EULERDAMP         ,
     /** number of disable flags                  */
     mjNDISABLE               ,
 }
@@ -317,10 +319,14 @@ export enum mjtEnableBit {
     mjENBL_ENERGY            ,
     /** record solver statistics                 */
     mjENBL_FWDINV            ,
+    /** discrete-time inverse dynamics           */
+    mjENBL_INVDISCRETE       ,
     /** add noise to sensor data                 */
     mjENBL_SENSORNOISE       ,
     /** multi-point convex collision detection   */
     mjENBL_MULTICCD          ,
+    /** constraint island discovery              */
+    mjENBL_ISLAND            ,
     /** number of enable flags                   */
     mjNENABLE                ,
 }
@@ -353,6 +359,8 @@ export enum mjtGeom {
     mjGEOM_BOX               ,
     /** mesh                                     */
     mjGEOM_MESH              ,
+    /** signed distance field                    */
+    mjGEOM_SDF               ,
     /** number of regular geom types             */
     mjNGEOMTYPES             ,
     /** arrow                                    */
@@ -363,10 +371,14 @@ export enum mjtGeom {
     mjGEOM_ARROW2            ,
     /** line                                     */
     mjGEOM_LINE              ,
+    /** flex                                     */
+    mjGEOM_FLEX              ,
     /** skin                                     */
     mjGEOM_SKIN              ,
     /** text label                               */
     mjGEOM_LABEL             ,
+    /** triangle connecting a frame              */
+    mjGEOM_TRIANGLE          ,
     /** missing geom type                        */
     mjGEOM_NONE              ,
 }
@@ -403,15 +415,6 @@ export enum mjtIntegrator {
     /** implicit in velocity, no rne derivative  */
     mjINT_IMPLICITFAST       ,
 }
-/**  collision mode for selecting geom pairs */
-export enum mjtCollision {
-    /** test precomputed and dynamic pairs       */
-    mjCOL_ALL                ,
-    /** test predefined pairs only               */
-    mjCOL_PAIR               ,
-    /** test dynamic pairs only                  */
-    mjCOL_DYNAMIC            ,
-}
 /**  type of friction cone                   */
 export enum mjtCone {
     /** pyramidal                                */
@@ -447,6 +450,8 @@ export enum mjtEq {
     mjEQ_JOINT               ,
     /** couple the lengths of two tendons with cubic */
     mjEQ_TENDON              ,
+    /** fix all edge lengths of a flex           */
+    mjEQ_FLEX                ,
     /** unsupported, will cause an error if used */
     mjEQ_DISTANCE            ,
 }
@@ -490,6 +495,8 @@ export enum mjtDyn {
     mjDYN_INTEGRATOR         ,
     /** linear filter: da/dt = (u-a) / tau       */
     mjDYN_FILTER             ,
+    /** linear filter: da/dt = (u-a) / tau, with exact integration */
+    mjDYN_FILTEREXACT        ,
     /** piece-wise linear filter with two time constants */
     mjDYN_MUSCLE             ,
     /** user-defined dynamics type               */
@@ -537,6 +544,8 @@ export enum mjtObj {
     mjOBJ_CAMERA             ,
     /** light                                    */
     mjOBJ_LIGHT              ,
+    /** flex                                     */
+    mjOBJ_FLEX               ,
     /** mesh                                     */
     mjOBJ_MESH               ,
     /** skin                                     */
@@ -620,6 +629,8 @@ export enum mjtSensor {
     mjSENS_MAGNETOMETER      ,
     /** scalar distance to nearest geom or site along z-axis */
     mjSENS_RANGEFINDER       ,
+    /** pixel coordinates of a site in the camera image */
+    mjSENS_CAMPROJECTION     ,
     /** scalar joint position (hinge and slide only) */
     mjSENS_JOINTPOS          ,
     /** scalar joint velocity (hinge and slide only) */
@@ -634,6 +645,8 @@ export enum mjtSensor {
     mjSENS_ACTUATORVEL       ,
     /** scalar actuator force                    */
     mjSENS_ACTUATORFRC       ,
+    /** scalar actuator force, measured at the joint */
+    mjSENS_JOINTACTFRC       ,
     /** 4D ball joint quaternion                 */
     mjSENS_BALLQUAT          ,
     /** 3D ball joint angular velocity           */
@@ -714,6 +727,19 @@ export enum mjtLRMode {
     /** process all actuators                    */
     mjLRMODE_ALL             ,
 }
+/**  mode for flex selfcollide               */
+export enum mjtFlexSelf {
+    /** no self-collisions                       */
+    mjFLEXSELF_NONE          ,
+    /** skip midphase, go directly to narrowphase */
+    mjFLEXSELF_NARROW        ,
+    /** use BVH in midphase (if midphase enabled) */
+    mjFLEXSELF_BVH           ,
+    /** use SAP in midphase                      */
+    mjFLEXSELF_SAP           ,
+    /** choose between BVH and SAP automatically */
+    mjFLEXSELF_AUTO          ,
+}
 
 export interface Model {
   new (filename : string) : Model;
@@ -735,6 +761,10 @@ export interface Model {
   nbody                 :       number;
   /** number of total bounding volumes in all bodies*/
   nbvh                  :       number;
+  /** number of static bounding volumes (aabb stored in mjModel)*/
+  nbvhstatic            :       number;
+  /** number of dynamic bounding volumes (aabb stored in mjData)*/
+  nbvhdynamic           :       number;
   /** number of joints*/
   njnt                  :       number;
   /** number of geoms*/
@@ -745,6 +775,22 @@ export interface Model {
   ncam                  :       number;
   /** number of lights*/
   nlight                :       number;
+  /** number of flexes*/
+  nflex                 :       number;
+  /** number of vertices in all flexes*/
+  nflexvert             :       number;
+  /** number of edges in all flexes*/
+  nflexedge             :       number;
+  /** number of elements in all flexes*/
+  nflexelem             :       number;
+  /** number of element vertex ids in all flexes*/
+  nflexelemdata         :       number;
+  /** number of shell fragment vertex ids in all flexes*/
+  nflexshelldata        :       number;
+  /** number of element-vertex pairs in all flexes*/
+  nflexevpair           :       number;
+  /** number of vertices with texture coordinates*/
+  nflextexcoord         :       number;
   /** number of meshes*/
   nmesh                 :       number;
   /** number of vertices in all meshes*/
@@ -829,6 +875,8 @@ export interface Model {
   nuser_sensor          :       number;
   /** number of chars in all names*/
   nnames                :       number;
+  /** number of chars in all paths*/
+  npaths                :       number;
   /** number of slots in the names hash map*/
   nnames_map            :       number;
   /** number of non-zeros in sparse inertia matrix*/
@@ -843,15 +891,15 @@ export interface Model {
   njmax                 :       number;
   /** number of potential contacts in contact list*/
   nconmax               :       number;
-  /** number of fields in mjData stack*/
-  nstack                :       number;
+  /** number of kinematic trees under world body*/
+  ntree                 :       number;
   /** number of extra fields in mjData*/
   nuserdata             :       number;
   /** number of fields in sensor data vector*/
   nsensordata           :       number;
-  /** number of fields in the plugin state vector*/
+  /** number of fields in plugin state vector*/
   npluginstate          :       number;
-  /** number of bytes in buffer*/
+  narena                :       number;
   nbuffer               :       number;
   /** qpos values at default pose              (nq x 1)*/
   qpos0                 : Float64Array;
@@ -873,11 +921,13 @@ export interface Model {
   body_dofnum           :   Int32Array;
   /** start addr of dofs; -1: no dofs          (nbody x 1)*/
   body_dofadr           :   Int32Array;
+  /** id of body's kinematic tree; -1: static  (nbody x 1)*/
+  body_treeid           :   Int32Array;
   /** number of geoms                          (nbody x 1)*/
   body_geomnum          :   Int32Array;
   /** start addr of geoms; -1: no geoms        (nbody x 1)*/
   body_geomadr          :   Int32Array;
-  /** body is simple (has diagonal M)          (nbody x 1)*/
+  /** 1: diagonal M; 2: diag M, no rotations   (nbody x 1)*/
   body_simple           :   Uint8Array;
   /** inertial frame is same as body frame     (nbody x 1)*/
   body_sameframe        :   Uint8Array;
@@ -899,10 +949,16 @@ export interface Model {
   body_invweight0       : Float64Array;
   /** antigravity force, units of body weight  (nbody x 1)*/
   body_gravcomp         : Float64Array;
+  /** MAX over all geom margins                (nbody x 1)*/
+  body_margin           : Float64Array;
   /** user data                                (nbody x nuser_body)*/
   body_user             : Float64Array;
   /** plugin instance id; -1: not in use       (nbody x 1)*/
   body_plugin           :   Int32Array;
+  /** OR over all geom contypes                (nbody x 1)*/
+  body_contype          :   Int32Array;
+  /** OR over all geom conaffinities           (nbody x 1)*/
+  body_conaffinity      :   Int32Array;
   /** address of bvh root                      (nbody x 1)*/
   body_bvhadr           :   Int32Array;
   /** number of bounding volumes               (nbody x 1)*/
@@ -911,9 +967,9 @@ export interface Model {
   bvh_depth             :   Int32Array;
   /** left and right children in tree          (nbvh x 2)*/
   bvh_child             :   Int32Array;
-  /** geom id of the node; -1: non-leaf        (nbvh x 1)*/
-  bvh_geomid            :   Int32Array;
-  /** bounding box of node (center, size)      (nbvh x 6)*/
+  /** geom or elem id of node; -1: non-leaf    (nbvh x 1)*/
+  bvh_nodeid            :   Int32Array;
+  /** local bounding box (center, size)        (nbvhstatic x 6)*/
   bvh_aabb              : Float64Array;
   /** type of joint (mjtJoint)                 (njnt x 1)*/
   jnt_type              :   Int32Array;
@@ -927,6 +983,8 @@ export interface Model {
   jnt_group             :   Int32Array;
   /** does joint have limits                   (njnt x 1)*/
   jnt_limited           :   Uint8Array;
+  /** does joint have actuator force limits    (njnt x 1)*/
+  jnt_actfrclimited     :   Uint8Array;
   /** constraint solver reference: limit       (njnt x mjNREF)*/
   jnt_solref            : Float64Array;
   /** constraint solver impedance: limit       (njnt x mjNIMP)*/
@@ -939,6 +997,8 @@ export interface Model {
   jnt_stiffness         : Float64Array;
   /** joint limits                             (njnt x 2)*/
   jnt_range             : Float64Array;
+  /** range of total actuator force            (njnt x 2)*/
+  jnt_actfrcrange       : Float64Array;
   /** min distance for limit detection         (njnt x 1)*/
   jnt_margin            : Float64Array;
   /** user data                                (njnt x nuser_jnt)*/
@@ -949,6 +1009,8 @@ export interface Model {
   dof_jntid             :   Int32Array;
   /** id of dof's parent; -1: none             (nv x 1)*/
   dof_parentid          :   Int32Array;
+  /** id of dof's kinematic tree               (nv x 1)*/
+  dof_treeid            :   Int32Array;
   /** dof address in M-diagonal                (nv x 1)*/
   dof_Madr              :   Int32Array;
   /** number of consecutive simple dofs        (nv x 1)*/
@@ -985,6 +1047,8 @@ export interface Model {
   geom_group            :   Int32Array;
   /** geom contact priority                    (ngeom x 1)*/
   geom_priority         :   Int32Array;
+  /** plugin instance id; -1: not in use       (ngeom x 1)*/
+  geom_plugin           :   Int32Array;
   /** same as body frame (1) or iframe (2)     (ngeom x 1)*/
   geom_sameframe        :   Uint8Array;
   /** mixing coef for solref/imp in geom pair  (ngeom x 1)*/
@@ -1041,6 +1105,12 @@ export interface Model {
   cam_bodyid            :   Int32Array;
   /** id of targeted body; -1: none            (ncam x 1)*/
   cam_targetbodyid      :   Int32Array;
+  /** [width, height] in pixels                (ncam x 2)*/
+  cam_resolution        :   Int32Array;
+  /** sensor size                              (ncam x 2)*/
+  cam_sensorsize        : Float32Array;
+  /** [focal length; principal point]          (ncam x 4)*/
+  cam_intrinsic         : Float32Array;
   /** position rel. to body frame              (ncam x 3)*/
   cam_pos               : Float64Array;
   /** orientation rel. to body frame           (ncam x 4)*/
@@ -1091,6 +1161,104 @@ export interface Model {
   light_diffuse         : Float32Array;
   /** specular rgb (alpha=1)                   (nlight x 3)*/
   light_specular        : Float32Array;
+  /** flex contact type                        (nflex x 1)*/
+  flex_contype          :   Int32Array;
+  /** flex contact affinity                    (nflex x 1)*/
+  flex_conaffinity      :   Int32Array;
+  /** contact dimensionality (1, 3, 4, 6)      (nflex x 1)*/
+  flex_condim           :   Int32Array;
+  /** flex contact priority                    (nflex x 1)*/
+  flex_priority         :   Int32Array;
+  /** mix coef for solref/imp in contact pair  (nflex x 1)*/
+  flex_solmix           : Float64Array;
+  /** constraint solver reference: contact     (nflex x mjNREF)*/
+  flex_solref           : Float64Array;
+  /** constraint solver impedance: contact     (nflex x mjNIMP)*/
+  flex_solimp           : Float64Array;
+  /** friction for (slide, spin, roll)         (nflex x 3)*/
+  flex_friction         : Float64Array;
+  /** detect contact if dist<margin            (nflex x 1)*/
+  flex_margin           : Float64Array;
+  /** include in solver if dist<margin-gap     (nflex x 1)*/
+  flex_gap              : Float64Array;
+  /** internal flex collision enabled          (nflex x 1)*/
+  flex_internal         :   Uint8Array;
+  /** self collision mode (mjtFlexSelf)        (nflex x 1)*/
+  flex_selfcollide      :   Int32Array;
+  /** number of active element layers, 3D only (nflex x 1)*/
+  flex_activelayers     :   Int32Array;
+  /** 1: lines, 2: triangles, 3: tetrahedra    (nflex x 1)*/
+  flex_dim              :   Int32Array;
+  /** material id for rendering                (nflex x 1)*/
+  flex_matid            :   Int32Array;
+  /** group for visibility                     (nflex x 1)*/
+  flex_group            :   Int32Array;
+  /** first vertex address                     (nflex x 1)*/
+  flex_vertadr          :   Int32Array;
+  /** number of vertices                       (nflex x 1)*/
+  flex_vertnum          :   Int32Array;
+  /** first edge address                       (nflex x 1)*/
+  flex_edgeadr          :   Int32Array;
+  /** number of edges                          (nflex x 1)*/
+  flex_edgenum          :   Int32Array;
+  /** first element address                    (nflex x 1)*/
+  flex_elemadr          :   Int32Array;
+  /** number of elements                       (nflex x 1)*/
+  flex_elemnum          :   Int32Array;
+  /** first element vertex id address          (nflex x 1)*/
+  flex_elemdataadr      :   Int32Array;
+  /** number of shells                         (nflex x 1)*/
+  flex_shellnum         :   Int32Array;
+  /** first shell data address                 (nflex x 1)*/
+  flex_shelldataadr     :   Int32Array;
+  /** first evpair address                     (nflex x 1)*/
+  flex_evpairadr        :   Int32Array;
+  /** number of evpairs                        (nflex x 1)*/
+  flex_evpairnum        :   Int32Array;
+  /** address in flex_texcoord; -1: none       (nflex x 1)*/
+  flex_texcoordadr      :   Int32Array;
+  /** vertex body ids                          (nflexvert x 1)*/
+  flex_vertbodyid       :   Int32Array;
+  /** edge vertex ids (2 per edge)             (nflexedge x 2)*/
+  flex_edge             :   Int32Array;
+  /** element vertex ids (dim+1 per elem)      (nflexelemdata x 1)*/
+  flex_elem             :   Int32Array;
+  /** element distance from surface, 3D only   (nflexelem x 1)*/
+  flex_elemlayer        :   Int32Array;
+  /** shell fragment vertex ids (dim per frag) (nflexshelldata x 1)*/
+  flex_shell            :   Int32Array;
+  /** (element, vertex) collision pairs        (nflexevpair x 2)*/
+  flex_evpair           :   Int32Array;
+  /** vertex positions in local body frames    (nflexvert x 3)*/
+  flex_vert             : Float64Array;
+  /** Cartesian vertex positions in qpos0      (nflexvert x 3)*/
+  flex_xvert0           : Float64Array;
+  /** edge lengths in qpos0                    (nflexedge x 1)*/
+  flexedge_length0      : Float64Array;
+  /** edge inv. weight in qpos0                (nflexedge x 1)*/
+  flexedge_invweight0   : Float64Array;
+  /** radius around primitive element          (nflex x 1)*/
+  flex_radius           : Float64Array;
+  /** edge stiffness                           (nflex x 1)*/
+  flex_edgestiffness    : Float64Array;
+  /** edge damping                             (nflex x 1)*/
+  flex_edgedamping      : Float64Array;
+  /** is edge equality constraint defined      (nflex x 1)*/
+  flex_edgeequality     :   Uint8Array;
+  /** are all verices in the same body         (nflex x 1)*/
+  flex_rigid            :   Uint8Array;
+  /** are all vertex coordinates (0,0,0)       (nflex x 1)*/
+  flex_centered         :   Uint8Array;
+  /** render flex skin with flat shading       (nflex x 1)*/
+  flex_flatskin         :   Uint8Array;
+  /** address of bvh root; -1: no bvh          (nflex x 1)*/
+  flex_bvhadr           :   Int32Array;
+  /** number of bounding volumes               (nflex x 1)*/
+  flex_bvhnum           :   Int32Array;
+  /** rgba when material is omitted            (nflex x 4)*/
+  flex_rgba             : Float32Array;
+  /** vertex texture coordinates               (nflextexcoord x 2)*/
+  flex_texcoord         : Float32Array;
   /** first vertex address                     (nmesh x 1)*/
   mesh_vertadr          :   Int32Array;
   /** number of vertices                       (nmesh x 1)*/
@@ -1107,8 +1275,16 @@ export interface Model {
   mesh_faceadr          :   Int32Array;
   /** number of faces                          (nmesh x 1)*/
   mesh_facenum          :   Int32Array;
+  /** address of bvh root                      (nmesh x 1)*/
+  mesh_bvhadr           :   Int32Array;
+  /** number of bvh                            (nmesh x 1)*/
+  mesh_bvhnum           :   Int32Array;
   /** graph data address; -1: no graph         (nmesh x 1)*/
   mesh_graphadr         :   Int32Array;
+  /** translation applied to asset vertices    (nmesh x 3)*/
+  mesh_pos              : Float64Array;
+  /** rotation applied to asset vertices       (nmesh x 4)*/
+  mesh_quat             : Float64Array;
   /** vertex positions for all meshes          (nmeshvert x 3)*/
   mesh_vert             : Float32Array;
   /** normals for all meshes                   (nmeshnormal x 3)*/
@@ -1123,6 +1299,8 @@ export interface Model {
   mesh_facetexcoord     :   Int32Array;
   /** convex graph data                        (nmeshgraph x 1)*/
   mesh_graph            :   Int32Array;
+  /** address of asset path for mesh; -1: none (nmesh x 1)*/
+  mesh_pathadr          :   Int32Array;
   /** skin material id; -1: none               (nskin x 1)*/
   skin_matid            :   Int32Array;
   /** group for visibility                     (nskin x 1)*/
@@ -1207,11 +1385,13 @@ export interface Model {
   pair_geom1            :   Int32Array;
   /** id of geom2                              (npair x 1)*/
   pair_geom2            :   Int32Array;
-  /** (body1+1) << 16 + body2+1                (npair x 1)*/
+  /** body1 << 16 + body2                      (npair x 1)*/
   pair_signature        :   Int32Array;
-  /** constraint solver reference: contact     (npair x mjNREF)*/
+  /** solver reference: contact normal         (npair x mjNREF)*/
   pair_solref           : Float64Array;
-  /** constraint solver impedance: contact     (npair x mjNIMP)*/
+  /** solver reference: contact friction       (npair x mjNREF)*/
+  pair_solreffriction   : Float64Array;
+  /** solver impedance: contact                (npair x mjNIMP)*/
   pair_solimp           : Float64Array;
   /** detect contact if dist<margin            (npair x 1)*/
   pair_margin           : Float64Array;
@@ -1219,7 +1399,7 @@ export interface Model {
   pair_gap              : Float64Array;
   /** tangent1, 2, spin, roll1, 2              (npair x 5)*/
   pair_friction         : Float64Array;
-  /** (body1+1) << 16 + body2+1                (nexclude x 1)*/
+  /** body1 << 16 + body2                      (nexclude x 1)*/
   exclude_signature     :   Int32Array;
   /** constraint type (mjtEq)                  (neq x 1)*/
   eq_type               :   Int32Array;
@@ -1227,8 +1407,8 @@ export interface Model {
   eq_obj1id             :   Int32Array;
   /** id of object 2                           (neq x 1)*/
   eq_obj2id             :   Int32Array;
-  /** enable/disable constraint                (neq x 1)*/
-  eq_active             :   Uint8Array;
+  /** initial enable/disable constraint state  (neq x 1)*/
+  eq_active0            :   Uint8Array;
   /** constraint solver reference              (neq x mjNREF)*/
   eq_solref             : Float64Array;
   /** constraint solver impedance              (neq x mjNIMP)*/
@@ -1309,6 +1489,8 @@ export interface Model {
   actuator_gainprm      : Float64Array;
   /** bias parameters                          (nu x mjNBIAS)*/
   actuator_biasprm      : Float64Array;
+  /** step activation before force             (nu x 1)*/
+  actuator_actearly     :   Uint8Array;
   /** range of controls                        (nu x 2)*/
   actuator_ctrlrange    : Float64Array;
   /** range of forces                          (nu x 2)*/
@@ -1413,6 +1595,8 @@ export interface Model {
   name_camadr           :   Int32Array;
   /** light name pointers                      (nlight x 1)*/
   name_lightadr         :   Int32Array;
+  /** flex name pointers                       (nflex x 1)*/
+  name_flexadr          :   Int32Array;
   /** mesh name pointers                       (nmesh x 1)*/
   name_meshadr          :   Int32Array;
   /** skin name pointers                       (nskin x 1)*/
@@ -1449,6 +1633,8 @@ export interface Model {
   names                 :   Uint8Array;
   /** internal hash map of names               (nnames_map x 1)*/
   names_map             :   Int32Array;
+  /** paths to assets, 0-terminated            (npaths x 1)*/
+  paths                 :   Uint8Array;
 }
 
 export interface State {
@@ -1489,6 +1675,8 @@ export interface Simulation {
   qfrc_applied          : Float64Array;
   /** applied Cartesian force/torque                   (nbody x 6)*/
   xfrc_applied          : Float64Array;
+  /** enable/disable constraints                       (neq x 1)*/
+  eq_active             :   Uint8Array;
   /** positions of mocap bodies                        (nmocap x 3)*/
   mocap_pos             : Float64Array;
   /** orientations of mocap bodies                     (nmocap x 4)*/
@@ -1541,6 +1729,20 @@ export interface Simulation {
   cdof                  : Float64Array;
   /** com-based body inertia and mass                  (nbody x 10)*/
   cinert                : Float64Array;
+  /** Cartesian flex vertex positions                  (nflexvert x 3)*/
+  flexvert_xpos         : Float64Array;
+  /** flex element bounding boxes (center, size)       (nflexelem x 6)*/
+  flexelem_aabb         : Float64Array;
+  /** number of non-zeros in Jacobian row              (nflexedge x 1)*/
+  flexedge_J_rownnz     :   Int32Array;
+  /** row start address in colind array                (nflexedge x 1)*/
+  flexedge_J_rowadr     :   Int32Array;
+  /** column indices in sparse Jacobian                (nflexedge x nv)*/
+  flexedge_J_colind     :   Int32Array;
+  /** flex edge Jacobian                               (nflexedge x nv)*/
+  flexedge_J            : Float64Array;
+  /** flex edge lengths                                (nflexedge x 1)*/
+  flexedge_length       : Float64Array;
   /** start address of tendon's path                   (ntendon x 1)*/
   ten_wrapadr           :   Int32Array;
   /** number of wrap points in path                    (ntendon x 1)*/
@@ -1573,8 +1775,12 @@ export interface Simulation {
   qLDiagInv             : Float64Array;
   /** 1/sqrt(diag(D))                                  (nv x 1)*/
   qLDiagSqrtInv         : Float64Array;
+  /** global bounding box (center, size)               (nbvhdynamic x 6)*/
+  bvh_aabb_dyn          : Float64Array;
   /** volume has been added to collisions              (nbvh x 1)*/
   bvh_active            :   Uint8Array;
+  /** flex edge velocities                             (nflexedge x 1)*/
+  flexedge_velocity     : Float64Array;
   /** tendon velocities                                (ntendon x 1)*/
   ten_velocity          : Float64Array;
   /** actuator velocities                              (nu x 1)*/
@@ -1655,6 +1861,10 @@ export interface Simulation {
   resetDataDebug        (debug_value : string): void;
   /** Reset data, set fields from specified keyframe.*/
   resetDataKeyframe     (key : number): void;
+  /** Mark a new frame on the mjData stack.*/
+  markStack             (): void;
+  /** Free the current mjData stack frame. All pointers returned by mj_stackAlloc since the last call to mj_markStack must no longer be used afterwards.*/
+  freeStack             (): void;
   /** Free memory allocation in mjData.*/
   deleteData            (): void;
   /** Reset all callbacks to NULL pointers (NULL is the default).*/
@@ -1713,6 +1923,8 @@ export interface Simulation {
   comPos                (): void;
   /** Compute camera and light positions and orientations.*/
   camlight              (): void;
+  /** Compute flex-related quantities.*/
+  flex                  (): void;
   /** Compute tendon lengths, velocities and moment arms.*/
   tendon                (): void;
   /** Compute actuator transmission lengths and moments.*/
@@ -1739,20 +1951,22 @@ export interface Simulation {
   collision             (): void;
   /** Construct constraints.*/
   makeConstraint        (): void;
+  /** Find constraint islands.*/
+  island                (): void;
   /** Compute inverse constraint inertia efc_AR.*/
   projectConstraint     (): void;
   /** Compute efc_vel, efc_aref.*/
   referenceConstraint   (): void;
+  /** Return size of state specification.*/
+  stateSize             (spec : unsigned number): number;
+  /** Set state.    [Only works with MuJoCo Allocated Arrays!]*/
+  setState              (state : Float64Array, spec : unsigned number): void;
   /** Determine type of friction cone.*/
   isPyramidal           (): number;
   /** Determine type of constraint Jacobian.*/
   isSparse              (): number;
   /** Determine type of solver (PGS is dual, CG and Newton are primal).*/
   isDual                (): number;
-  /** Multiply dense or sparse constraint Jacobian by vector.    [Only works with MuJoCo Allocated Arrays!]*/
-  mulJacVec             (res : Float64Array, vec : Float64Array): void;
-  /** Multiply dense or sparse constraint Jacobian transpose by vector.    [Only works with MuJoCo Allocated Arrays!]*/
-  mulJacTVec            (res : Float64Array, vec : Float64Array): void;
   /** Compute subtree center-of-mass end-effector Jacobian.    [Only works with MuJoCo Allocated Arrays!]*/
   jacSubtreeCom         (jacp : Float64Array, body : number): void;
   /** Get id of object with the specified mjtObj type and name, returns -1 if id not found.*/
@@ -1805,16 +2019,12 @@ export interface Simulation {
   warning               (warning : number, info : number): void;
   /** Write [datetime, type: message] to MUJOCO_LOG.TXT.*/
   _writeLog             (type : string, msg : string): void;
-  /** Return 1 (for backward compatibility).*/
-  activate              (filename : string): number;
-  /** Do nothing (for backward compatibility).*/
-  deactivate            (): void;
   /** Set res = 0.    [Only works with MuJoCo Allocated Arrays!]*/
   _zero                 (res : Float64Array, n : number): void;
   /** Set res = val.    [Only works with MuJoCo Allocated Arrays!]*/
   _fill                 (res : Float64Array, val : number, n : number): void;
   /** Set res = vec.    [Only works with MuJoCo Allocated Arrays!]*/
-  _copy                 (res : Float64Array, data : Float64Array, n : number): void;
+  _copy                 (res : Float64Array, vec : Float64Array, n : number): void;
   /** Return sum(vec).    [Only works with MuJoCo Allocated Arrays!]*/
   _sum                  (vec : Float64Array, n : number): number;
   /** Return L1 norm: sum(abs(vec)).    [Only works with MuJoCo Allocated Arrays!]*/
@@ -1861,10 +2071,22 @@ export interface Simulation {
   _sqrMatTD             (res : Float64Array, mat : Float64Array, diag : Float64Array, nr : number, nc : number): void;
   /** Cholesky decomposition: mat = L*L'; return rank, decomposition performed in-place into mat.    [Only works with MuJoCo Allocated Arrays!]*/
   _cholFactor           (mat : Float64Array, n : number, mindiag : number): number;
-  /** Solve mat * res = vec, where mat is Cholesky-factorized    [Only works with MuJoCo Allocated Arrays!]*/
+  /** Solve (mat*mat') * res = vec, where mat is a Cholesky factor.    [Only works with MuJoCo Allocated Arrays!]*/
   _cholSolve            (res : Float64Array, mat : Float64Array, vec : Float64Array, n : number): void;
   /** Cholesky rank-one update: L*L' +/- x*x'; return rank.    [Only works with MuJoCo Allocated Arrays!]*/
   _cholUpdate           (mat : Float64Array, x : Float64Array, n : number, flg_plus : number): number;
+  /** Band-dense Cholesky decomposition.  Returns minimum value in the factorized diagonal, or 0 if rank-deficient.  mat has (ntotal-ndense) x nband + ndense x ntotal elements.  The first (ntotal-ndense) x nband store the band part, left of diagonal, inclusive.  The second ndense x ntotal store the band part as entire dense rows.  Add diagadd+diagmul*mat_ii to diagonal before factorization.    [Only works with MuJoCo Allocated Arrays!]*/
+  _cholFactorBand       (mat : Float64Array, ntotal : number, nband : number, ndense : number, diagadd : number, diagmul : number): number;
+  /** Solve (mat*mat')*res = vec where mat is a band-dense Cholesky factor.    [Only works with MuJoCo Allocated Arrays!]*/
+  _cholSolveBand        (res : Float64Array, mat : Float64Array, vec : Float64Array, ntotal : number, nband : number, ndense : number): void;
+  /** Convert banded matrix to dense matrix, fill upper triangle if flg_sym>0.    [Only works with MuJoCo Allocated Arrays!]*/
+  _band2Dense           (res : Float64Array, mat : Float64Array, ntotal : number, nband : number, ndense : number, flg_sym : mjtByte): void;
+  /** Convert dense matrix to banded matrix.    [Only works with MuJoCo Allocated Arrays!]*/
+  _dense2Band           (res : Float64Array, mat : Float64Array, ntotal : number, nband : number, ndense : number): void;
+  /** Multiply band-diagonal matrix with nvec vectors, include upper triangle if flg_sym>0.    [Only works with MuJoCo Allocated Arrays!]*/
+  _bandMulMatVec        (res : Float64Array, mat : Float64Array, vec : Float64Array, ntotal : number, nband : number, ndense : number, nvec : number, flg_sym : mjtByte): void;
+  /** Address of diagonal element i in band-dense matrix representation.*/
+  _bandDiag             (i : number, ntotal : number, nband : number, ndense : number): number;
   /** Convert contact force to pyramid representation.    [Only works with MuJoCo Allocated Arrays!]*/
   _encodePyramid        (pyramid : Float64Array, force : Float64Array, mu : Float64Array, dim : number): void;
   /** Convert pyramid representation to contact force.    [Only works with MuJoCo Allocated Arrays!]*/
@@ -1899,12 +2121,16 @@ export interface Simulation {
   _insertionSort        (list : Float64Array, n : number): void;
   /** Generate Halton sequence.*/
   _Halton               (index : number, base : number): number;
-  /** Sigmoid function over 0<=x<=1 constructed from half-quadratics.*/
+  /** Sigmoid function over 0<=x<=1 using quintic polynomial.*/
   _sigmoid              (x : number): number;
   /** Finite differenced transition matrices (control theory notation)   d(x_next) = A*dx + B*du   d(sensor) = C*dx + D*du   required output matrix dimensions:      A: (2*nv+na x 2*nv+na)      B: (2*nv+na x nu)      D: (nsensordata x 2*nv+na)      C: (nsensordata x nu)    [Only works with MuJoCo Allocated Arrays!]*/
-  _transitionFD         (eps : number, centered : mjtByte, A : Float64Array, B : Float64Array, C : Float64Array, D : Float64Array): void;
+  _transitionFD         (eps : number, flg_centered : mjtByte, A : Float64Array, B : Float64Array, C : Float64Array, D : Float64Array): void;
+  /** Finite differenced Jacobians of (force, sensors) = mj_inverse(state, acceleration)   All outputs are optional. Output dimensions (transposed w.r.t Control Theory convention):     DfDq: (nv x nv)     DfDv: (nv x nv)     DfDa: (nv x nv)     DsDq: (nv x nsensordata)     DsDv: (nv x nsensordata)     DsDa: (nv x nsensordata)     DmDq: (nv x nM)   single-letter shortcuts:     inputs: q=qpos, v=qvel, a=qacc     outputs: f=qfrc_inverse, s=sensordata, m=qM   notes:     optionally computes mass matrix Jacobian DmDq     flg_actuation specifies whether to subtract qfrc_actuator from qfrc_inverse    [Only works with MuJoCo Allocated Arrays!]*/
+  _inverseFD            (eps : number, flg_actuation : mjtByte, DfDq : Float64Array, DfDv : Float64Array, DfDa : Float64Array, DsDq : Float64Array, DsDv : Float64Array, DsDa : Float64Array, DmDq : Float64Array): void;
   /** Return the number of globally registered plugins.*/
   _pluginCount          (): number;
+  /** Return the number of globally registered resource providers.*/
+  _resourceProviderCount(): number;
 }
 
 export interface mujoco extends EmscriptenModule {

@@ -246,16 +246,16 @@ EMSCRIPTEN_BINDINGS(mujoco_wasm) {
       .field("tolerance"           , &mjOption::tolerance)         // main solver tolerance
       .field("noslip_tolerance"    , &mjOption::noslip_tolerance)  // noslip solver tolerance
       .field("mpr_tolerance"       , &mjOption::mpr_tolerance)     // MPR solver tolerance
-      //.field("gravity"           , &mjOption::gravity)           // gravitational acceleration
-      //.field("wind"              , &mjOption::wind)              // wind (for lift, drag and viscosity)
-      //.field("magnetic"          , &mjOption::magnetic)          // global magnetic flux
+      // .field("gravity"           , &mjOption::gravity)           // gravitational acceleration
+      // .field("wind"              , &mjOption::wind)              // wind (for lift, drag and viscosity)
+      // .field("magnetic"          , &mjOption::magnetic)          // global magnetic flux
       .field("density"             , &mjOption::density)           // density of medium
       .field("viscosity"           , &mjOption::viscosity)         // viscosity of medium
       .field("o_margin"            , &mjOption::o_margin)          // margin
       //.field("o_solref"          , &mjOption::o_solref)          // solref
       //.field("o_solimp"          , &mjOption::o_solimp)          // solimp
       .field("integrator"          , &mjOption::integrator)        // integration mode (mjtIntegrator)
-      .field("collision"           , &mjOption::collision)         // collision mode (mjtCollision)
+      // .field("collision"           , &mjOption::collision)         // collision mode (mjtCollision)
       .field("cone"                , &mjOption::cone)              // type of friction cone (mjtCone)
       .field("jacobian"            , &mjOption::jacobian)          // type of Jacobian (mjtJacobian)
       .field("solver"              , &mjOption::solver)            // solver algorithm (mjtSolver)
